@@ -789,6 +789,7 @@ class HHOutputParser(object):
         c_rank = 0
         header = {}
         hits = {}
+        skip_hits = []
         alis = {}
 
         for line in stream:
@@ -840,6 +841,10 @@ class HHOutputParser(object):
                 qpos = line[75:84].strip()
                 qstart, qend = map(int, qpos.split('-'))
 
+                if end==start or qend==qstart:
+                    skip_hits.append(rank)
+                    continue
+
                 probability = float(line[35:40]) / 100.0
 
                 hit = HHpredHit(rank, id, start, end, qstart, qend, probability, qlen)
@@ -852,7 +857,6 @@ class HHOutputParser(object):
                 hit.slength = int(line[94:].replace('(', '').replace(')', ''))
 
                 hits[hit.rank] = hit
-                alis[hit.rank] = {'q': [], 's': []}
 
             elif in_alis and not header_only:
                 if line.startswith('Done'):
@@ -861,37 +865,48 @@ class HHOutputParser(object):
                 
                 elif line.startswith('No '):
                     c_rank = int(line[3:])
-                    if c_rank not in hits:
+                    if c_rank not in hits and c_rank not in skip_hits:
                         raise HHOutputFormatError('Alignment {0}. refers to a non-existing hit'.format(c_rank))
+                    elif c_rank in hits and c_rank in skip_hits:
+                        raise HHOutputFormatError('Alignment {0}. refers to both a legitimate and a skipped hit'.format(c_rank))
+                    elif c_rank not in skip_hits:
+                        alis[c_rank] = {'q': [], 's': []}
+
+                else :
+                    if c_rank in skip_hits:
+                        continue
                     
-                elif line.startswith('>'):
-                    hits[c_rank].name = line[1:].strip()
-                    
-                elif line.startswith('Probab='):
-                    for pair in line.split():
-                        key, value = pair.split('=')
-                        if key == 'Identities':
-                            hits[c_rank].identity = float(
-                                value.replace('%', ''))
-                        elif key == 'Similarity':
-                            hits[c_rank].similarity = float(value)
-                        elif key == 'Sum_probs':
-                            hits[c_rank].prob_sum = float(value)
+                    if line.startswith('>'):
+                        hits[c_rank].name = line[1:].strip()
+                        descr = line[1:].split(';')
+                        if len(descr) > 1:
+                            hits[c_rank].description = descr[0]+';'+descr[1]
+                        
+                    elif line.startswith('Probab='):
+                        for pair in line.split():
+                            key, value = pair.split('=')
+                            if key == 'Identities':
+                                hits[c_rank].identity = float(
+                                    value.replace('%', ''))
+                            elif key == 'Similarity':
+                                hits[c_rank].similarity = float(value)
+                            elif key == 'Sum_probs':
+                                hits[c_rank].prob_sum = float(value)
+                                
+                    elif line.startswith('Q ') and not line[:11].rstrip() in ('Q Consensus', 'Q ss_pred','Q ss_conf', 'Q ss_dssp'):
+                        for residue in line[22:]:
+                            if residue.isspace() or residue.isdigit():
+                                break
+                            else:
+                                alis[c_rank]['q'].append(residue)
+                                has_alis = True
                             
-                elif line.startswith('Q ') and not line[:11].rstrip() in ('Q Consensus', 'Q ss_pred','Q ss_conf', 'Q ss_dssp'):
-                    for residue in line[22:]:
-                        if residue.isspace() or residue.isdigit():
-                            break
-                        else:
-                            alis[c_rank]['q'].append(residue)
-                            has_alis = True
-                            
-                elif line.startswith('T ') and not line[:11].rstrip() in ('T Consensus', 'T ss_pred','T ss_conf', 'T ss_dssp'):
-                    for residue in line[22:]:
-                        if residue.isspace() or residue.isdigit():
-                            break
-                        else:
-                            alis[c_rank]['s'].append(residue)
+                    elif line.startswith('T ') and not line[:11].rstrip() in ('T Consensus', 'T ss_pred','T ss_conf', 'T ss_dssp'):
+                        for residue in line[22:]:
+                            if residue.isspace() or residue.isdigit():
+                                break
+                            else:
+                                alis[c_rank]['s'].append(residue)
 
         if self.alignments and has_alis:
             for rank in alis:
