@@ -878,9 +878,6 @@ class HHOutputParser(object):
                     
                     if line.startswith('>'):
                         hits[c_rank].name = line[1:].strip()
-                        descr = line[1:].split(';')
-                        if len(descr) > 1:
-                            hits[c_rank].description = descr[0]+';'+descr[1]
                         
                     elif line.startswith('Probab='):
                         for pair in line.split():

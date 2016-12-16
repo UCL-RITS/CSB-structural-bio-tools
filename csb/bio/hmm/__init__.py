@@ -1528,12 +1528,10 @@ class HHpredHit(object):
     @type probability: float
     @param qlength: length of the query
     @type qlength: int
-    @param description: description of the hit (optional)
-    @type description: str
     """
 
     def __init__(self, rank, id, start, end, qstart, qend, probability,
-                 qlength, description=''):
+                 qlength):
 
         self._rank = None
         self._id = None
@@ -1543,7 +1541,6 @@ class HHpredHit(object):
         self._qend = None
         self._probability = None
         self._qlength = None
-        self._description = None
         self._alignment = None
 
         self._slength = None
@@ -1564,7 +1561,6 @@ class HHpredHit(object):
         self.qend = qend
         self.probability = probability
         self.qlength = qlength
-        self.description = description
 
     def __str__(self):
         return "{0.id} {0.probability} {0.start}-{0.end}".format(self)
@@ -1735,17 +1731,6 @@ class HHpredHit(object):
         except:
             raise TypeError('probability must be float, not {0}'.format(type(value)))
         self._probability = value
-
-    @property
-    def description(self):
-        return self._description
-    @description.setter
-    def description(self, value):
-        try:
-            value = str(value)
-        except:
-            raise TypeError('description must be string, not {0}'.format(type(value)))
-        self._description = value
 
     @property
     def alignment(self):
